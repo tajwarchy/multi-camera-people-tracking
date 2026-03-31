@@ -112,18 +112,8 @@ class ReIDAssociator:
         return enriched
 
     def run(self, all_cam_records: Dict[str, List[dict]]) -> Dict[str, List[dict]]:
-        """
-        Process all cameras frame by frame in chronological order.
-        Cameras are interleaved per frame to simulate real-time association.
-        Args:
-            all_cam_records: { cam_id: [records...] }
-        Returns:
-            enriched_records: { cam_id: [enriched_records...] }
-        """
-        # Find max frame count across cameras
         max_frames = max(len(v) for v in all_cam_records.values())
         cam_ids = list(all_cam_records.keys())
-
         enriched: Dict[str, List[dict]] = {c: [] for c in cam_ids}
 
         print(f"[ReIDAssociator] Processing {max_frames} frames across {len(cam_ids)} cameras...")
@@ -133,11 +123,76 @@ class ReIDAssociator:
                 records = all_cam_records[cam_id]
                 if frame_idx >= len(records):
                     continue
-                record = records[frame_idx]
-                enriched_record = self.process_record(record)
-                enriched[cam_id].append(enriched_record)
+                enriched[cam_id].append(self.process_record(records[frame_idx]))
 
-        print(f"[ReIDAssociator] Total global IDs minted: {self.registry.next_id - 1}")
+        # ── Second pass: merge global IDs whose prototypes are similar ──
+        print("[ReIDAssociator] Running second-pass prototype merging...")
+        merge_map = self._build_merge_map()
+        if merge_map:
+            print(f"[ReIDAssociator] Merging global IDs: {merge_map}")
+            enriched = self._apply_merge(enriched, merge_map)
+
+        print(f"[ReIDAssociator] Total global IDs after merge: "
+            f"{len(set(merge_map.get(g, g) for g in range(1, self.registry.next_id)))}")
+        
+        # Suppress ghost IDs with too few observations
+        min_obs = 5
+        obs_count: Dict[int, int] = {}
+        for cam_id, records in enriched.items():
+            for record in records:
+                for gid in record.get("global_ids", []):
+                    if gid != -1:
+                        obs_count[gid] = obs_count.get(gid, 0) + 1
+
+        ghost_ids = {gid for gid, cnt in obs_count.items() if cnt < min_obs}
+        if ghost_ids:
+            print(f"[ReIDAssociator] Suppressing ghost IDs: {ghost_ids}")
+            for cam_id, records in enriched.items():
+                for record in records:
+                    record["global_ids"] = [
+                        -1 if gid in ghost_ids else gid
+                        for gid in record.get("global_ids", [])
+                    ]
+        
+        return enriched
+
+    def _build_merge_map(self, merge_threshold: float = 0.75) -> Dict[int, int]:
+        """
+        Compare all prototype pairs. If similarity exceeds merge_threshold,
+        map the higher ID to the lower ID.
+        """
+        gids = sorted(self.registry.prototypes.keys())
+        merge_map = {}
+
+        for i in range(len(gids)):
+            for j in range(i + 1, len(gids)):
+                ga, gb = gids[i], gids[j]
+                # Resolve already-merged IDs
+                ga_final = merge_map.get(ga, ga)
+                gb_final = merge_map.get(gb, gb)
+                if ga_final == gb_final:
+                    continue
+                pa = self.registry.prototypes[ga_final]
+                pb = self.registry.prototypes[gb_final]
+                sim = cosine_similarity(pa, pb)
+                if sim >= merge_threshold:
+                    # Map higher ID → lower ID
+                    keep   = min(ga_final, gb_final)
+                    remove = max(ga_final, gb_final)
+                    merge_map[remove] = keep
+                    print(f"  [Merge] G{remove} → G{keep} (sim={sim:.4f})")
+
+        return merge_map
+
+    def _apply_merge(self, enriched: Dict[str, List[dict]],
+                    merge_map: Dict[int, int]) -> Dict[str, List[dict]]:
+        """Remap global IDs in all enriched records using merge_map."""
+        for cam_id, records in enriched.items():
+            for record in records:
+                record["global_ids"] = [
+                    merge_map.get(gid, gid)
+                    for gid in record.get("global_ids", [])
+                ]
         return enriched
 
     def save_global_id_map(self) -> None:
