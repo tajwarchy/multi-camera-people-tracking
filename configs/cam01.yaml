@@ -1,0 +1,22 @@
+# ── Camera 01 Config ──────────────────────────────────────────
+cam_id: "cam01"
+source: "data/cameras/cam01/frames"   # path to extracted frames dir
+video_source: "data/raw/cam0.avi"
+
+# Frame range (set after checking extract output)
+start_frame: 0
+end_frame: 499          # adjust to actual frame count
+
+# Homography point pairs (pixel coords in camera frame → BEV canvas coords)
+# Format: [[cam_x, cam_y], [bev_x, bev_y]]
+# Leave as empty list for now — filled in Phase 6
+homography_points: []
+
+# StrongSORT overrides (leave null to use global defaults)
+tracker_overrides:
+  max_age: null
+  min_hits: null
+
+# Display
+display_name: "Laboratory - Camera 0"
+color: [0, 255, 0]      # BGR — green overlay for this camera

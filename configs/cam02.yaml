@@ -1,0 +1,15 @@
+cam_id: "cam02"
+source: "data/cameras/cam02/frames"
+video_source: "data/raw/cam1.avi"
+
+start_frame: 0
+end_frame: 499
+
+homography_points: []
+
+tracker_overrides:
+  max_age: null
+  min_hits: null
+
+display_name: "Laboratory - Camera 1"
+color: [255, 0, 0]      # BGR — blue

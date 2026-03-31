@@ -1,0 +1,63 @@
+# ── Global Config ─────────────────────────────────────────────
+project_name: "project_v12_multicam"
+
+# Device
+device: "mps"          # mps | cpu
+fallback_device: "cpu"
+
+# Input
+resolution: 640        # reduce to 480 if thermal throttling
+num_workers: 0         # macOS multiprocessing constraint
+
+# Detection
+detector:
+  model: "yolov8m.pt"
+  confidence: 0.4
+  iou_threshold: 0.5
+  classes: [0]         # person only
+
+# Tracking (StrongSORT)
+tracker:
+  max_age: 30
+  min_hits: 3
+  iou_threshold: 0.3
+
+# OSNet Embedding
+embedder:
+  model: "osnet_x1_0"
+  weights: "checkpoints/osnet_x1_0_market.pth"  # pretrained weights path
+  input_size: [256, 128]   # H x W
+  embedding_dim: 512
+
+# Cross-Camera ReID Association
+reid:
+  similarity_threshold: 0.75   # cosine similarity cutoff for global ID match
+  ema_alpha: 0.9               # exponential moving average weight for prototype update
+
+# BEV Projection
+bev:
+  floor_plan_path: "data/floor_plan/bev_canvas.png"
+  canvas_width: 800
+  canvas_height: 600
+  trajectory_tail_length: 30  # number of past positions to draw
+
+# Output
+output:
+  per_camera_dir: "outputs/per_camera"
+  bev_dir: "outputs/bev"
+  composite_dir: "outputs/composite"
+  fps: 25
+  fourcc: "mp4v"
+
+# Evaluation
+eval:
+  query_dir: "data/reid_eval/query"
+  gallery_dir: "data/reid_eval/gallery"
+  metrics_output: "outputs/reid_metrics.json"
+
+# Paths
+paths:
+  embedding_store_dir: "outputs/embeddings"
+  global_id_map: "outputs/global_id_map.json"
+  homography_dir: "checkpoints/homographies"
+  log_dir: "logs"
