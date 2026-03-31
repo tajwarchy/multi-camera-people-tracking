@@ -31,7 +31,7 @@ embedder:
 
 # Cross-Camera ReID Association
 reid:
-  similarity_threshold: 0.75   # cosine similarity cutoff for global ID match
+  similarity_threshold: 0.65   # cosine similarity cutoff for global ID match
   ema_alpha: 0.9               # exponential moving average weight for prototype update
 
 # BEV Projection

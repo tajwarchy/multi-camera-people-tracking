@@ -29,17 +29,30 @@ def load_frames(frames_dir: str, start: int, end: int) -> List[str]:
     return [str(f) for f in files]
 
 
-def annotate_frame(frame: np.ndarray, tracks: np.ndarray, cam_id: str) -> np.ndarray:
+def annotate_frame(frame: np.ndarray, tracks: np.ndarray,
+                   cam_id: str, global_ids: List[int] = None) -> np.ndarray:
     out = frame.copy()
-    for t in tracks:
+    for i, t in enumerate(tracks):
         x1, y1, x2, y2, tid = int(t[0]), int(t[1]), int(t[2]), int(t[3]), int(t[4])
+        gid = global_ids[i] if global_ids is not None else -1
         color = get_color(tid)
+
         cv2.rectangle(out, (x1, y1), (x2, y2), color, 2)
-        label = f"{cam_id} | ID:{tid}"
-        (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.55, 1)
+
+        # Top label: local ID
+        local_label = f"{cam_id}|L:{tid}"
+        (tw, th), _ = cv2.getTextSize(local_label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
         cv2.rectangle(out, (x1, y1 - th - 6), (x1 + tw + 4, y1), color, -1)
-        cv2.putText(out, label, (x1 + 2, y1 - 4),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 255), 1)
+        cv2.putText(out, local_label, (x1 + 2, y1 - 4),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+
+        # Bottom label: global ID (white box)
+        if gid != -1:
+            global_label = f"G:{gid}"
+            (gw, gh), _ = cv2.getTextSize(global_label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+            cv2.rectangle(out, (x1, y2), (x1 + gw + 4, y2 + gh + 6), (255, 255, 255), -1)
+            cv2.putText(out, global_label, (x1 + 2, y2 + gh + 2),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
     return out
 
 
